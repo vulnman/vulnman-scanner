@@ -1,0 +1,5 @@
+appdirs
+colorama
+toml
+unidecode
+pluginlib
