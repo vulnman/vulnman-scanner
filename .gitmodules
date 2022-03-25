@@ -1,3 +1,0 @@
-[submodule "autorecon/resources/vulnerability_templates"]
-	path = autorecon/resources/vulnerability_templates
-	url = git@github.com:vulnman/community-vulnerability-templates.git
