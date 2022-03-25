@@ -1,9 +1,16 @@
 import asyncio, inspect, os, re, sys
+import pluginlib
+import yaml
+from pathlib import Path
 from typing import final
 from autorecon.config import config
 from autorecon.io import slugify, info, warn, error, fail, CommandStreamReader
 from autorecon.targets import Service
 from autorecon.utils.logger import Logger
+from autorecon.core.plugins import servicescan
+from autorecon.core.plugins import portscan
+from autorecon.core.plugins import report
+from autorecon.core.vulns import VulnerabilityTemplate, Vulnerability
 
 
 class Pattern:
@@ -209,9 +216,6 @@ class ServiceScan(Plugin):
 			# Add a "match all" service name.
 			self.match_service_name('.*')
 
-	async def on_plugin_end(self, output):
-		return []
-
 
 class Report(Plugin):
 
@@ -241,7 +245,7 @@ class AutoRecon(object):
 		self.lock = asyncio.Lock()
 		self.load_slug = None
 		self.load_module = None
-		self.vulnerabilities = []
+		self.vulnerability_templates = []
 
 	def add_argument(self, plugin, name, **kwargs):
 		# TODO: make sure name is simple.
@@ -283,6 +287,14 @@ class AutoRecon(object):
 			else:
 				break
 		return services
+
+	def load_plugins(self):
+		loader = pluginlib.PluginLoader(modules=['autorecon.service_plugins', 'autorecon.portscan_plugins', 'autorecon.report_plugins'])
+		plugins = loader.plugins
+		for plugin_type in ["servicescan", "portscan", "reportplugin"]:
+			for plugin_name in loader.plugins.get(plugin_type).items():
+				plugin = loader.get_plugin(plugin_type, plugin_name[0])(self)
+				self.register(plugin, "")
 
 	def register(self, plugin, filename):
 		if plugin.disabled:
@@ -340,10 +352,16 @@ class AutoRecon(object):
 				self.plugin_types["service"].append(plugin)
 			elif issubclass(plugin.__class__, Report):
 				self.plugin_types["report"].append(plugin)
+			elif issubclass(plugin.__class__, servicescan.ServiceScan):
+				self.plugin_types["service"].append(plugin)
+			elif issubclass(plugin.__class__, portscan.PortScan):
+				self.plugin_types["port"].append(plugin)
+			elif issubclass(plugin.__class__, report.ReportPlugin):
+				self.plugin_types["report"].append(plugin)
 			else:
 				fail('Plugin "' + plugin.name + '" in ' + filename + ' is neither a PortScan, ServiceScan, nor a Report.', file=sys.stderr)
 
-			plugin.tags = [tag.lower() for tag in plugin.tags]
+			# plugin.tags = [tag.lower() for tag in plugin.tags]
 
 			# Add plugin tags to tag list.
 			[self.taglist.append(t) for t in plugin.tags if t not in self.tags]
@@ -355,11 +373,7 @@ class AutoRecon(object):
 		else:
 			fail('Error: plugin slug "' + plugin.slug + '" in ' + filename + ' is already assigned.', file=sys.stderr)
 
-	async def execute(self, cmd, target, tag, plugin, patterns=None, outfile=None, errfile=None):
-		if patterns:
-			combined_patterns = self.patterns + patterns
-		else:
-			combined_patterns = self.patterns
+	async def execute(self, cmd, target, tag, plugin, service=None, outfile=None, errfile=None):
 
 		process = await asyncio.create_subprocess_shell(
 			cmd,
@@ -367,10 +381,20 @@ class AutoRecon(object):
 			stdout=asyncio.subprocess.PIPE,
 			stderr=asyncio.subprocess.PIPE)
 
-		cout = CommandStreamReader(process.stdout, target, tag, plugin, patterns=combined_patterns, outfile=outfile)
-		cerr = CommandStreamReader(process.stderr, target, tag, plugin, patterns=combined_patterns, outfile=errfile)
+		cout = CommandStreamReader(process.stdout, target, tag, plugin, cmd, service=service, outfile=outfile)
+		cerr = CommandStreamReader(process.stderr, target, tag, plugin, cmd, service=service, outfile=errfile)
 
 		asyncio.create_task(cout._read())
 		asyncio.create_task(cerr._read())
 
 		return process, cout, cerr
+
+	def import_vulnerability_templates(self):
+		base_dir = os.path.dirname(os.path.dirname(__file__))
+		templates_dir = os.path.join(base_dir, "autorecon/resources/vulnerability_templates/templates")
+		for path in Path(templates_dir).rglob('info.yaml'):
+			with open(path, "r") as f:
+				for item in yaml.safe_load(f):
+					self.vulnerability_templates.append(
+						VulnerabilityTemplate(item["id"], item["name"], item["severity"])
+					)

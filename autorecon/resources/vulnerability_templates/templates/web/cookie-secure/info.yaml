@@ -1,0 +1,9 @@
+- id: cookie-secure
+  name: Cookie Secure Flag Missing
+  severity: medium
+  references:
+    - "https://cwe.mitre.org/data/definitions/614.html"
+  cwe:
+    - CWE-614
+  categories:
+    - configuration

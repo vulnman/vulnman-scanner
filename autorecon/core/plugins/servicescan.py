@@ -1,13 +1,16 @@
 import pluginlib
 import sys
+import re
+from shutil import which
 from autorecon.core.plugins import baseplugin
 
 
 @pluginlib.Parent("servicescan")
 class ServiceScan(baseplugin.Plugin):
+    toolname = None
 
     def __init__(self, autorecon):
-        super().__init__(autorecon)
+        super(ServiceScan, self).__init__(autorecon)
         self.ports = {"tcp": [], "udp": []}
         self.ignore_ports = {"tcp": [], "udp": []}
         self.services = []
@@ -17,6 +20,14 @@ class ServiceScan(baseplugin.Plugin):
         self.require_ssl_boolean = False
         self.max_target_instances = 0
         self.max_global_instances = 0
+
+    def check(self):
+        if not self.toolname:
+            toolname = self.name
+        else:
+            toolname = self.toolname
+        if which(toolname) is None:
+            self.error('The %s program could not be found. Make sure it is installed.' % toolname)
 
     def match_service(self, protocol, port, name, negative_match=False):
         protocol = protocol.lower()
@@ -84,5 +95,11 @@ class ServiceScan(baseplugin.Plugin):
         if boolean:
             self.match_service_name('.*')
 
-    async def on_plugin_end(self, output):
-        return []
+    @pluginlib.abstractmethod
+    async def on_plugin_end(self, output, cmd, target=None, service=None):
+        pass
+
+    @pluginlib.abstractmethod
+    async def run(self, service):
+        pass
+

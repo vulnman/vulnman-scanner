@@ -14,7 +14,7 @@ colorama.init()
 
 from autorecon.config import config, configurable_keys, configurable_boolean_keys
 from autorecon.io import slugify, e, fformat, cprint, debug, info, warn, error, fail, CommandStreamReader
-from autorecon.plugins import Pattern, PortScan, ServiceScan, Report, AutoRecon
+from autorecon.plugins import Pattern, PortScan, ServiceScan, AutoRecon
 from autorecon.targets import Target, Service
 from autorecon.utils import tasks
 
@@ -44,6 +44,7 @@ else:
 terminal_settings = termios.tcgetattr(sys.stdin.fileno())
 
 autorecon = AutoRecon()
+autorecon.import_vulnerability_templates()
 
 
 def cancel_all_tasks(signal, frame):
@@ -786,8 +787,6 @@ async def run():
 	parser.add_argument('--port-scans', action='store', type=str, metavar='PLUGINS', help='Override --tags / --exclude-tags for the listed PortScan plugins (comma separated). Default: %(default)s')
 	parser.add_argument('--service-scans', action='store', type=str, metavar='PLUGINS', help='Override --tags / --exclude-tags for the listed ServiceScan plugins (comma separated). Default: %(default)s')
 	parser.add_argument('--reports', action='store', type=str, metavar='PLUGINS', help='Override --tags / --exclude-tags for the listed Report plugins (comma separated). Default: %(default)s')
-	parser.add_argument('--plugins-dir', action='store', type=str, help='The location of the plugins directory. Default: %(default)s')
-	parser.add_argument('--add-plugins-dir', action='store', type=str, metavar='PLUGINS_DIR', help='The location of an additional plugins directory to add to the main one. Default: %(default)s')
 	parser.add_argument('-l', '--list', action='store', nargs='?', const='plugins', metavar='TYPE', help='List all plugins or plugins of a specific type. e.g. --list, --list port, --list service')
 	parser.add_argument('-o', '--output', action='store', help='The output directory for results. Default: %(default)s')
 	parser.add_argument('--single-target', action='store_true', help='Only scan a single target. A directory named after the target will not be created. Instead, the directory structure will be created within the output directory. Default: %(default)s')
@@ -799,7 +798,6 @@ async def run():
 	nmap_group = parser.add_mutually_exclusive_group()
 	nmap_group.add_argument('--nmap', action='store', help='Override the {nmap_extra} variable in scans. Default: %(default)s')
 	nmap_group.add_argument('--nmap-append', action='store', help='Append to the default {nmap_extra} variable in scans. Default: %(default)s')
-	parser.add_argument('--proxychains', action='store_true', help='Use if you are running AutoRecon via proxychains. Default: %(default)s')
 	parser.add_argument('--disable-sanity-checks', action='store_true', help='Disable sanity checks that would otherwise prevent the scans from running. Default: %(default)s')
 	parser.add_argument('--disable-keyboard-control', action='store_true', help='Disables keyboard control ([s]tatus, Up, Down) if you are in SSH or Docker.')
 	parser.add_argument('--force-services', action='store', nargs='+', metavar='SERVICE', help='A space separated list of services in the following style: tcp/80/http tcp/443/https/secure')
@@ -840,10 +838,6 @@ async def run():
 				key = slugify(key)
 				if key == 'global-file':
 					config['global_file'] = val
-				elif key == 'plugins-dir':
-					config['plugins_dir'] = val
-				elif key == 'add-plugins-dir':
-					config['add_plugins_dir'] = val
 		except toml.decoder.TomlDecodeError:
 			unknown_help()
 			fail('Error: Couldn\'t parse ' + args.config_file + ' config file. Check syntax.')
@@ -853,72 +847,18 @@ async def run():
 		key = slugify(key)
 		if key == 'global-file' and args_dict['global_file'] is not None:
 			config['global_file'] = args_dict['global_file']
-		elif key == 'plugins-dir' and args_dict['plugins_dir'] is not None:
-			config['plugins_dir'] = args_dict['plugins_dir']
-		elif key == 'add-plugins-dir' and args_dict['add_plugins_dir'] is not None:
-			config['add_plugins_dir'] = args_dict['add_plugins_dir']
 
-	if not config['plugins_dir']:
-		unknown_help()
-		fail('Error: Could not find plugins directory in the current directory or ~/.config/AutoRecon.')
-
-	if not os.path.isdir(config['plugins_dir']):
-		unknown_help()
-		fail('Error: Specified plugins directory "' + config['plugins_dir'] + '" does not exist.')
-
-	if config['add_plugins_dir'] and not os.path.isdir(config['add_plugins_dir']):
-		unknown_help()
-		fail('Error: Specified additional plugins directory "' + config['add_plugins_dir'] + '" does not exist.')
-
-	plugins_dirs = [config['plugins_dir']]
-	if config['add_plugins_dir']:
-		plugins_dirs.append(config['add_plugins_dir'])
-
-	for plugins_dir in plugins_dirs:
-		for plugin_file in os.listdir(plugins_dir):
-			if not plugin_file.startswith('_') and plugin_file.endswith('.py'):
-
-				dirname, filename = os.path.split(os.path.join(plugins_dir, plugin_file))
-				dirname = os.path.abspath(dirname)
-
-				# Temporarily insert the plugin directory into the sys.path so importing plugins works.
-				sys.path.insert(1, dirname)
-
-				try:
-					plugin = importlib.import_module(filename[:-3])
-					# Remove the plugin directory from the path after import.
-					sys.path.pop(1)
-					clsmembers = inspect.getmembers(plugin, predicate=inspect.isclass)
-					for (_, c) in clsmembers:
-						if c.__module__ in ['autorecon.plugins', 'autorecon.targets']:
-							continue
-
-						if c.__name__.lower() in config['protected_classes']:
-							unknown_help()
-							print('Plugin "' + c.__name__ + '" in ' + filename + ' is using a protected class name. Please change it.')
-							sys.exit(1)
-
-						# Only add classes that are a sub class of either PortScan, ServiceScan, or Report
-						if issubclass(c, PortScan) or issubclass(c, ServiceScan) or issubclass(c, Report):
-							autorecon.register(c(), filename)
-						else:
-							print('Plugin "' + c.__name__ + '" in ' + filename + ' is not a subclass of either PortScan, ServiceScan, or Report.')
-				except (ImportError, SyntaxError) as ex:
-					unknown_help()
-					print('cannot import ' + filename + ' plugin')
-					print(ex)
-					sys.exit(1)
-
+	autorecon.load_plugins()
 	for plugin in autorecon.plugins.values():
 		if plugin.slug in autorecon.taglist:
 			unknown_help()
 			fail('Plugin ' + plugin.name + ' has a slug (' + plugin.slug + ') with the same name as a tag. Please either change the plugin name or override the slug.')
 		# Add plugin slug to tags.
-		plugin.tags += [plugin.slug]
+		# plugin.tags += [plugin.slug]
 
 	if len(autorecon.plugin_types['port']) == 0:
 		unknown_help()
-		fail('Error: There are no valid PortScan plugins in the plugins directory "' + config['plugins_dir'] + '".')
+		# fail('Error: There are no valid PortScan plugins in the plugins directory "' + config['plugins_dir'] + '".')
 
 	# Sort plugins by priority.
 	autorecon.plugin_types['port'].sort(key=lambda x: x.priority)
@@ -1490,7 +1430,6 @@ async def run():
 		elapsed_time = tasks.calculate_elapsed_time(start_time)
 		info('{bright}Finished scanning all targets in ' + elapsed_time + '!{rst}')
 		info('{bright}Don\'t forget to check out more commands to run manually in the _manual_commands.txt file in each target\'s scans directory!')
-
 	if autorecon.missing_services:
 		warn('{byellow}AutoRecon identified the following services, but could not match them to any plugins based on the service name. Please report these to Tib3rius: ' + ', '.join(autorecon.missing_services) + '{rst}')
 

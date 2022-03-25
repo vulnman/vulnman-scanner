@@ -1,0 +1,10 @@
+- id: open-redirect
+  name: Open Redirect
+  severity: medium
+  references:
+    - "https://cwe.mitre.org/data/definitions/601.html"
+  cwe:
+    - CWE-601
+  categories:
+    - configuration
+    - input-validation

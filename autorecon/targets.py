@@ -2,6 +2,8 @@ import asyncio, inspect, os
 from typing import final
 from autorecon.config import config
 from autorecon.io import e, info, warn, error
+from autorecon.core.vulns import Vulnerability
+
 
 class Target:
 
@@ -68,9 +70,6 @@ class Target:
 
 		plugin = inspect.currentframe().f_back.f_locals['self']
 
-		if config['proxychains']:
-			nmap_extra += ' -sT'
-
 		cmd = e(cmd)
 		tag = plugin.slug
 
@@ -91,7 +90,7 @@ class Target:
 			with open(os.path.join(target.scandir, '_commands.log'), 'a') as file:
 				file.writelines(cmd + '\n\n')
 
-		process, stdout, stderr = await target.autorecon.execute(cmd, target, tag, patterns=plugin.patterns, outfile=outfile, errfile=errfile)
+		process, stdout, stderr = await target.autorecon.execute(cmd, target, tag, plugin, outfile=outfile, errfile=errfile)
 
 		target.running_tasks[tag]['processes'].append({'process': process, 'stderr': stderr, 'cmd': cmd})
 
@@ -112,6 +111,7 @@ class Service:
 		self.name = name
 		self.secure = secure
 		self.manual_commands = {}
+		self.vulnerabilities = []
 
 	@final
 	def tag(self):
@@ -185,9 +185,6 @@ class Service:
 				addressv6 = '[' + addressv6 + ']'
 			ipaddressv6 = '[' + ipaddressv6 + ']'
 
-		if config['proxychains'] and protocol == 'tcp':
-			nmap_extra += ' -sT'
-
 		plugin = inspect.currentframe().f_back.f_locals['self']
 		cmd = e(cmd)
 		tag = self.tag() + '/' + plugin.slug
@@ -211,8 +208,7 @@ class Service:
 		async with target.lock:
 			with open(os.path.join(target.scandir, '_commands.log'), 'a') as file:
 				file.writelines(cmd + '\n\n')
-
-		process, stdout, stderr = await target.autorecon.execute(cmd, target, tag, plugin, patterns=plugin.patterns, outfile=outfile, errfile=errfile)
+		process, stdout, stderr = await target.autorecon.execute(cmd, target, tag, plugin, service=self, outfile=outfile, errfile=errfile)
 
 		target.running_tasks[tag]['processes'].append({'process': process, 'stderr': stderr, 'cmd': cmd})
 
@@ -223,3 +219,20 @@ class Service:
 			await process.wait()
 
 		return process, stdout, stderr
+
+	def add_vulnerability(self, vuln_id, proofs, plugin):
+		vuln_exists = False
+		for vuln in self.vulnerabilities:
+			if vuln.vuln_id == vuln_id:
+				vuln_exists = True
+				for proof in proofs:
+					vuln.add_proof(proof)
+				break
+		if not vuln_exists:
+			vuln = Vulnerability(vuln_id, plugin.autorecon)
+			for proof in proofs:
+				vuln.add_proof(proof)
+			self.vulnerabilities.append(vuln)
+			info("Vulnerability found: %s by plugin %s" % (vuln.name, 
+				proofs[0].plugin.name))
+		return vuln

@@ -1,0 +1,1 @@
+The length sould be at least 128 bits.

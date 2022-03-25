@@ -1,19 +1,23 @@
+import re
 from autorecon.utils.logger import Logger
+from autorecon.utils.slugify import slugify
+from autorecon.core.vulns import Proof
 
 
 class Plugin(object):
-    disabled = False
-    name = None
-    priority = 1
-    description = None
-    tags = []
+    _tags = []
 
     def __init__(self, autorecon):
         self.autorecon = autorecon
         self.logger = Logger()
+        self.description = None
+        self.slug = None
+        self.priority = 1
+        self.disabled = False
 
-    def get_tags(self):
-        return self.tags.copy()
+    @property
+    def tags(self):
+        return self._tags.copy()
 
     def get_description(self):
         return self.description
@@ -77,3 +81,25 @@ class Plugin(object):
 
     def info(self, msg, verbosity=0):
         self.logger.info('{bright}[{bgreen}' + self.name + '{crst}]{rst} ' + msg)
+
+    def proof_from_regex_oneline(self, cmd, pattern, output, highlight_group=None):
+        matched = re.search(pattern, output)
+        proofs = None
+        if matched:
+            if highlight_group:
+                text_proof = "```\n$ %s\n[...]\n" % (cmd)
+                for index in range(1, len(matched.groups())+1):
+                    if highlight_group == index:
+                        text_proof += "§§%s§§" % matched.group(index)
+                    else:
+                        text_proof += matched.group(index)
+                text_proof += "\n[...]\n```"
+            else:
+                text_proof = "```\n$ %s\n[...]\n§§%s§§\n[...]\n```" % (cmd, matched.group())
+            proofs = [
+                Proof(self, cmd, text_proof)
+            ]
+        return proofs
+
+    def get_proof_from_data(self, cmd, text_proof):
+        return Proof(self, cmd, text_proof)

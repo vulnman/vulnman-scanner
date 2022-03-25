@@ -1,12 +1,8 @@
-> It's like bowling with bumpers. - [@ippsec](https://twitter.com/ippsec)
+# Vulnman Scanner
 
-# AutoRecon
+Vulnman Scanner started as a fork of [AutoReocn](https://github.com/Tib3rius/AutoRecon).
 
-AutoRecon is a multi-threaded network reconnaissance tool which performs automated enumeration of services. It is intended as a time-saving tool for use in CTFs and other penetration testing environments (e.g. OSCP). It may also be useful in real-world engagements.
 
-The tool works by firstly performing port scans / service detection scans. From those initial results, the tool will launch further enumeration scans of those services using a number of different tools. For example, if HTTP is found, feroxbuster will be launched (as well as many others).
-
-Everything in the tool is highly configurable. The default configuration performs **no automated exploitation** to keep the tool in line with OSCP exam rules. If you wish to add automatic exploit tools to the configuration, you do so at your own risk. The author will not be held responsible for negative actions that result from the mis-use of this tool.
 
 ## Origin
 

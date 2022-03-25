@@ -1,0 +1,7 @@
+- id: weak-key-length
+  name: Weak Key Length
+  severity: medium
+  cwe:
+    - CWE-310
+  categories:
+    - crypto-weakness

@@ -97,14 +97,16 @@ def fail(*args, sep=' ', end='\n', file=sys.stderr, **kvargs):
 
 class CommandStreamReader(object):
 
-	def __init__(self, stream, target, tag, plugin, patterns=None, outfile=None):
+	def __init__(self, stream, target, tag, plugin, cmd, service=None, outfile=None):
 		self.stream = stream
 		self.plugin = plugin
 		self.target = target
 		self.tag = tag
 		self.lines = []
-		self.patterns = patterns or []
+		self.patterns = []
 		self.outfile = outfile
+		self.service = service
+		self.cmd = cmd
 		self.ended = False
 
 		# Empty files that already exist.
@@ -162,8 +164,7 @@ class CommandStreamReader(object):
 			self.lines.append(line)
 		self.ended = True
 		output = "\n".join(self.lines)
-		output = await self.plugin.on_plugin_end(output)
-		error(str(output))
+		await self.plugin.on_plugin_end(output, self.cmd, self.target, service=self.service)
 		#self.target.autorecon.vulnerabilities += vulnerabilities
 		#for vuln in self.target.autorecon.vulnerabilities:
 		#		error("Vuln: %s" % str(vuln.output))

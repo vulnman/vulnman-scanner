@@ -1,0 +1,1 @@
+The key length for TLS connections is lower than the recommended 128 bits.

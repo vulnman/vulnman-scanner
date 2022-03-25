@@ -1,0 +1,5 @@
+- id: cert-ca-true
+  name: Certificate has set CA=true
+  severity: medium
+  categories:
+    - configuration

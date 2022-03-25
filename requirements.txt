@@ -3,3 +3,5 @@ colorama
 toml
 unidecode
 pluginlib
+pyaml
+requests

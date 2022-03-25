@@ -1,0 +1,5 @@
+- id: cert-expired
+  name: Certificate Expired
+  severity: medium
+  categories:
+    - crypto-weakness

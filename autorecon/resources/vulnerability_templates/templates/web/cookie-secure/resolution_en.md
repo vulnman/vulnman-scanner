@@ -1,0 +1,1 @@
+It is recommended to set the *HTTPOnly* Flag on cookies.

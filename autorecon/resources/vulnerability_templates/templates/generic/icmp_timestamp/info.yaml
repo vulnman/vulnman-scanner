@@ -1,0 +1,6 @@
+- id: icmp-timestamp
+  name: ICMP Timestamp
+  severity: informational
+  categories:
+    - information-disclosure
+    - configuration

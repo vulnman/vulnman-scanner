@@ -1,0 +1,10 @@
+- id: error-message
+  name: Error Message Disclosure
+  severity: informational
+  references:
+    - "https://cwe.mitre.org/data/definitions/209.html"
+  cwe:
+    - CWE-209
+  categories:
+    - information-disclosure
+    - configuration

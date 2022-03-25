@@ -1,0 +1,9 @@
+- id: sql-injection
+  name: SQL-Injection
+  severity: critical
+  references:
+    - "https://cwe.mitre.org/data/definitions/1004.html"
+  cwe:
+    - CWE-1004
+  categories:
+    - input-validation

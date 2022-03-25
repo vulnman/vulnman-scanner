@@ -1,0 +1,1 @@
+It is recommended to implement an access control mechanism which restricts access to sensitive endpoints by default.

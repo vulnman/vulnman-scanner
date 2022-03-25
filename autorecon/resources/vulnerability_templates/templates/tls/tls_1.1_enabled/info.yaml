@@ -1,0 +1,5 @@
+- id: tls-1.1-enabled
+  name: TLS 1.1 Enabled
+  severity: medium
+  categories:
+    - configuration

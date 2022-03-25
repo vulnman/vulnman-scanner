@@ -1,0 +1,9 @@
+- id: user-enumeration
+  name: User Enumeration
+  severity: informational
+  references:
+    - "https://cwe.mitre.org/data/definitions/204.html"
+  cwe:
+    - CWE-204
+  categories:
+    - error-handling
