@@ -103,7 +103,6 @@ class CommandStreamReader(object):
 		self.target = target
 		self.tag = tag
 		self.lines = []
-		self.patterns = []
 		self.outfile = outfile
 		self.service = service
 		self.cmd = cmd
@@ -115,7 +114,6 @@ class CommandStreamReader(object):
 
 	# Read lines from the stream until it ends.
 	async def _read(self):
-		#error(str(self.target.__dict__))
 		while True:
 			if self.stream.at_eof():
 				break
@@ -127,37 +125,7 @@ class CommandStreamReader(object):
 
 			if line != '':
 				info('{bright}[{yellow}' + self.target.address + '{crst}/{bgreen}' + self.tag + '{crst}]{rst} ' + line.strip().replace('{', '{{').replace('}', '}}'), verbosity=3)
-
-			# Check lines for pattern matches.
-			for p in self.patterns:
-				description = ''
-
-				# Match and replace entire pattern.
-				match = p.pattern.search(line)
-				if match:
-					if p.description:
-						description = p.description.replace('{match}', line[match.start():match.end()])
-
-						# Match and replace substrings.
-						matches = p.pattern.findall(line)
-						if len(matches) > 0 and isinstance(matches[0], tuple):
-							matches = list(matches[0])
-						match_count = 1
-						for match in matches:
-							if p.description:
-								description = description.replace('{match' + str(match_count) + '}', match)
-							match_count += 1
-
-						async with self.target.lock:
-							with open(os.path.join(self.target.scandir, '_patterns.log'), 'a') as file:
-								info('{bright}[{yellow}' + self.target.address + '{crst}/{bgreen}' + self.tag + '{crst}]{rst} {bmagenta}' + description + '{rst}', verbosity=2)
-								file.writelines(description + '\n\n')
-					else:
-						info('{bright}[{yellow}' + self.target.address + '{crst}/{bgreen}' + self.tag + '{crst}]{rst} {bmagenta}Matched Pattern: ' + line[match.start():match.end()] + '{rst}', verbosity=2)
-						async with self.target.lock:
-							with open(os.path.join(self.target.scandir, '_patterns.log'), 'a') as file:
-								file.writelines('Matched Pattern: ' + line[match.start():match.end()] + '\n\n')
-
+	
 			if self.outfile is not None:
 				with open(self.outfile, 'a') as writer:
 					writer.write(line + '\n')
@@ -165,9 +133,6 @@ class CommandStreamReader(object):
 		self.ended = True
 		output = "\n".join(self.lines)
 		await self.plugin.on_plugin_end(output, self.cmd, self.target, service=self.service)
-		#self.target.autorecon.vulnerabilities += vulnerabilities
-		#for vuln in self.target.autorecon.vulnerabilities:
-		#		error("Vuln: %s" % str(vuln.output))
 
 	# Read a line from the stream cache.
 	async def readline(self):

@@ -1,6 +1,9 @@
 import re
 from autorecon.core.plugins import servicescan
 
+NUCLEI_VULNERABILITY_MAP = {
+
+}
 
 class Nuclei(servicescan.ServiceScan):
     _alias_ = 'nuclei'
@@ -14,7 +17,7 @@ class Nuclei(servicescan.ServiceScan):
     async def run(self, service):
         if service.protocol == "tcp":
             scandir = service.target.scandir
-            await service.execute('nuclei -t /usr/share/nuclei-templates -json -nc '
+            await service.execute(self, 'nuclei -irr -t /usr/share/nuclei-templates -json -nc '
                 '-u {http_scheme}://{addressv6}:{port} 2>&1', outfile='{protocol}_{port}_nuclei.txt')
 
     async def on_plugin_end(self, output, cmd, target=None, service=None):

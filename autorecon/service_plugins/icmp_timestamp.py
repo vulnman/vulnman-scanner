@@ -14,7 +14,7 @@ class ICMPTimestamp(servicescan.ServiceScan):
 
     async def run(self, service):
         cmd = '%s -c 5 -p {port} -S --tcp-timestamp {addressv6}' % self.toolname
-        await service.execute(cmd, outfile="icmp_timestamp_hping.txt")
+        await service.execute(self, cmd, outfile="icmp_timestamp_hping.txt")
 
     async def on_plugin_end(self, output, cmd, target=None, service=None):
         # group 2 is system uptime

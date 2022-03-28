@@ -4,7 +4,7 @@ import argparse, asyncio, importlib, inspect, ipaddress, math, os, re, select, s
 from datetime import datetime
 
 try:
-	import appdirs, colorama, toml, unidecode
+	import appdirs, colorama, unidecode, yaml
 	from colorama import Fore, Style
 except ModuleNotFoundError:
 	print('One or more required modules was not installed. Please run or re-run: ' + ('sudo ' if os.getuid() == 0 else '') + 'python3 -m pip install -r requirements.txt')
@@ -15,8 +15,9 @@ colorama.init()
 from autorecon.config import config, configurable_keys, configurable_boolean_keys
 from autorecon.io import slugify, e, fformat, cprint, debug, info, warn, error, fail, CommandStreamReader
 from autorecon.plugins import Pattern, PortScan, ServiceScan, AutoRecon
-from autorecon.targets import Target, Service
+from autorecon.targets import Target
 from autorecon.utils import tasks
+from autorecon.core import assets
 
 VERSION = "2.0.17"
 
@@ -24,8 +25,6 @@ if not os.path.exists(config['config_dir']):
 	shutil.rmtree(config['config_dir'], ignore_errors=True, onerror=None)
 	os.makedirs(config['config_dir'], exist_ok=True)
 	open(os.path.join(config['config_dir'], 'VERSION-' + VERSION), 'a').close()
-	shutil.copy(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'config.toml'), os.path.join(config['config_dir'], 'config.toml'))
-	shutil.copy(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'global.toml'), os.path.join(config['config_dir'], 'global.toml'))
 	shutil.copytree(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'default-plugins'), os.path.join(config['config_dir'], 'plugins'))
 	# shutil.copytree(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'wordlists'), os.path.join(config['config_dir'], 'wordlists'))
 else:
@@ -306,7 +305,7 @@ async def service_scan(plugin, service):
 			if config['proxychains'] and protocol == 'tcp':
 				nmap_extra += ' -sT'
 
-			tag = service.tag() + '/' + plugin.slug
+			tag = service.tag + '/' + plugin.slug
 
 			info('Service scan {bblue}' + plugin.name + ' {green}(' + tag + '){rst} running against {byellow}' + service.target.address + '{rst}', verbosity=1)
 
@@ -394,9 +393,6 @@ async def scan_target(target):
 		reportdir = os.path.join(basedir, 'report')
 		os.makedirs(reportdir, exist_ok=True)
 
-		open(os.path.join(reportdir, 'local.txt'), 'a').close()
-		open(os.path.join(reportdir, 'proof.txt'), 'a').close()
-
 		screenshotdir = os.path.join(reportdir, 'screenshots')
 		os.makedirs(screenshotdir, exist_ok=True)
 	else:
@@ -422,7 +418,7 @@ async def scan_target(target):
 				port = int(match.group('port'))
 				service = match.group('service')
 				secure = True if match.group('secure') == 'secure' else False
-				service = Service(protocol, port, service, secure)
+				service = assets.Service(protocol, port, service, secure)
 				service.target = target
 				services.append(service)
 
@@ -499,8 +495,8 @@ async def scan_target(target):
 						services.append(service)
 
 		for service in services:
-			if service.full_tag() not in target.services:
-				target.services.append(service.full_tag())
+			if service.full_tag not in target.services:
+				target.services.append(service.full_tag)
 			else:
 				continue
 
@@ -552,7 +548,7 @@ async def scan_target(target):
 			for plugin in target.autorecon.plugin_types['service']:
 				plugin_was_run = False
 				plugin_service_match = False
-				plugin_tag = service.tag() + '/' + plugin.slug
+				plugin_tag = service.tag + '/' + plugin.slug
 
 				for service_dict in plugin.services:
 					if service_dict['protocol'] == protocol and port in service_dict['port']:
@@ -674,7 +670,7 @@ async def scan_target(target):
 					service_match = True
 
 			for plugin in matching_plugins:
-				plugin_tag = service.tag() + '/' + plugin.slug
+				plugin_tag = service.tag + '/' + plugin.slug
 
 				if plugin.run_once_boolean:
 					plugin_tag = plugin.slug
@@ -700,7 +696,6 @@ async def scan_target(target):
 				warn('{byellow}[' + target.address + ']{srst} Service ' + service.full_tag() + ' did not match any plugins based on the service name.{rst}', verbosity=2)
 				if service.name not in ['status', 'tcpwrapped', 'unknown'] and service.full_tag() not in target.autorecon.missing_services:
 					target.autorecon.missing_services.append(service.full_tag())
-
 	for plugin in target.autorecon.plugin_types['report']:
 		if config['reports'] and plugin.slug in config['reports']:
 			matching_tags = True
@@ -751,28 +746,15 @@ async def scan_target(target):
 
 async def run():
 	# Find config file.
-	if os.path.isfile(os.path.join(os.getcwd(), 'config.toml')):
-		config_file = os.path.join(os.getcwd(), 'config.toml')
-	elif os.path.isfile(os.path.join(config['config_dir'], 'config.toml')):
-		config_file = os.path.join(config['config_dir'], 'config.toml')
+	if os.path.isfile(os.path.join(os.getcwd(), 'config.yaml')):
+		config_file = os.path.join(os.getcwd(), 'config.yaml')
+	elif os.path.isfile(os.path.join(config['config_dir'], 'config.yaml')):
+		config_file = os.path.join(config['config_dir'], 'config.yaml')
 	else:
 		config_file = None
 
-	# Find global file.
-	if os.path.isfile(os.path.join(os.getcwd(), 'global.toml')):
-		config['global_file'] = os.path.join(os.getcwd(), 'global.toml')
-	elif os.path.isfile(os.path.join(config['config_dir'], 'global.toml')):
-		config['global_file'] = os.path.join(config['config_dir'], 'global.toml')
-	else:
-		config['global_file'] = None
-
-	# Find plugins.
-	if os.path.isdir(os.path.join(os.getcwd(), 'plugins')):
-		config['plugins_dir'] = os.path.join(os.getcwd(), 'plugins')
-	elif os.path.isdir(os.path.join(config['config_dir'], 'plugins')):
-		config['plugins_dir'] = os.path.join(config['config_dir'], 'plugins')
-	else:
-		config['plugins_dir'] = None
+	config["plugins_dir"] = None
+	config["global_file"] = None
 
 	parser = argparse.ArgumentParser(add_help=False, description='Network reconnaissance tool to port scan and automatically enumerate services found on multiple targets.')
 	parser.add_argument('targets', action='store', help='IP addresses (e.g. 10.0.0.1), CIDR notation (e.g. 10.0.0.1/24), or resolvable hostnames (e.g. foo.bar) to scan.', nargs='*')
@@ -833,12 +815,12 @@ async def run():
 
 	with open(args.config_file) as c:
 		try:
-			config_toml = toml.load(c)
-			for key, val in config_toml.items():
+			config_yaml = yaml.safe_load(c)
+			for key, val in config_yaml.items():
 				key = slugify(key)
 				if key == 'global-file':
 					config['global_file'] = val
-		except toml.decoder.TomlDecodeError:
+		except yaml.YAMLError:
 			unknown_help()
 			fail('Error: Couldn\'t parse ' + args.config_file + ' config file. Check syntax.')
 
@@ -865,86 +847,8 @@ async def run():
 	autorecon.plugin_types['service'].sort(key=lambda x: x.priority)
 	autorecon.plugin_types['report'].sort(key=lambda x: x.priority)
 
-	if not config['global_file']:
-		unknown_help()
-		fail('Error: Could not find global.toml in the current directory or ~/.config/AutoRecon.')
-
-	if not os.path.isfile(config['global_file']):
-		unknown_help()
-		fail('Error: Specified global file "' + config['global_file'] + '" does not exist.')
-
-	global_plugin_args = None
-	with open(config['global_file']) as g:
-		try:
-			global_toml = toml.load(g)
-			for key, val in global_toml.items():
-				if key == 'global' and isinstance(val, dict): # Process global plugin options.
-					for gkey, gvals in global_toml['global'].items():
-						if isinstance(gvals, dict):
-							options = {'metavar':'VALUE'}
-
-							if 'default' in gvals:
-								options['default'] = gvals['default']
-
-							if 'metavar' in gvals:
-								options['metavar'] = gvals['metavar']
-
-							if 'help' in gvals:
-								options['help'] = gvals['help']
-
-							if 'type' in gvals:
-								gtype = gvals['type'].lower()
-								if gtype == 'constant':
-									if 'constant' not in gvals:
-										fail('Global constant option ' + gkey + ' has no constant value set.')
-									else:
-										options['action'] = 'store_const'
-										options['const'] = gvals['constant']
-								elif gtype == 'true':
-									options['action'] = 'store_true'
-									options.pop('metavar', None)
-									options.pop('default', None)
-								elif gtype == 'false':
-									options['action'] = 'store_false'
-									options.pop('metavar', None)
-									options.pop('default', None)
-								elif gtype == 'list':
-									options['nargs'] = '+'
-								elif gtype == 'choice':
-									if 'choices' not in gvals:
-										fail('Global choice option ' + gkey + ' has no choices value set.')
-									else:
-										if not isinstance(gvals['choices'], list):
-											fail('The \'choices\' value for global choice option ' + gkey + ' should be a list.')
-										options['choices'] = gvals['choices']
-										options.pop('metavar', None)
-
-							if global_plugin_args is None:
-								global_plugin_args = parser.add_argument_group("global plugin arguments", description="These are optional arguments that can be used by all plugins.")
-
-							global_plugin_args.add_argument('--global.' + slugify(gkey), **options)
-				elif key == 'pattern' and isinstance(val, list): # Process global patterns.
-					for pattern in val:
-						if 'pattern' in pattern:
-							try:
-								compiled = re.compile(pattern['pattern'])
-								if 'description' in pattern:
-									autorecon.patterns.append(Pattern(compiled, description=pattern['description']))
-								else:
-									autorecon.patterns.append(Pattern(compiled))
-							except re.error:
-								unknown_help()
-								fail('Error: The pattern "' + pattern['pattern'] + '" in the global file is invalid regex.')
-						else:
-							unknown_help()
-							fail('Error: A [[pattern]] in the global file doesn\'t have a required pattern variable.')
-
-		except toml.decoder.TomlDecodeError:
-			unknown_help()
-			fail('Error: Couldn\'t parse ' + g.name + ' file. Check syntax.')
-
 	other_options = []
-	for key, val in config_toml.items():
+	for key, val in config_yaml.items():
 		if key == 'global' and isinstance(val, dict): # Process global plugin options.
 			for gkey, gval in config_toml['global'].items():
 				if isinstance(gval, bool):
@@ -957,7 +861,7 @@ async def run():
 					if autorecon.argparse.get_default('global.' + slugify(gkey).replace('-', '_')):
 						autorecon.argparse.set_defaults(**{'global.' + slugify(gkey).replace('-', '_'): gval})
 		elif isinstance(val, dict): # Process potential plugin arguments.
-			for pkey, pval in config_toml[key].items():
+			for pkey, pval in config_yaml[key].items():
 				if autorecon.argparse.get_default(slugify(key).replace('-', '_') + '.' + slugify(pkey).replace('-', '_')):
 					autorecon.argparse.set_defaults(**{slugify(key).replace('-', '_') + '.' + slugify(pkey).replace('-', '_'): pval})
 		else: # Process potential other options.
@@ -1159,9 +1063,12 @@ async def run():
 				autorecon.service_scan_semaphore = asyncio.Semaphore(config['max_scans'] - config['max_port_scans'])
 
 	tags = []
-	for tag_group in list(set(filter(None, args.tags.lower().split(',')))):
-		tags.append(list(set(filter(None, tag_group.split('+')))))
-
+	if isinstance(args.tags, list):
+		for tag in args.tags:
+			tags.append([tag.lower()])
+	else:
+		for tag_group in list(set(filter(None, args.tags.lower().split(',')))):
+			tags.append(list(set(filter(None, tag_group.split('+')))))
 	# Remove duplicate lists from list.
 	[autorecon.tags.append(t) for t in tags if t not in autorecon.tags]
 

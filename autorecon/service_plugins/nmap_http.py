@@ -4,7 +4,7 @@ from autorecon.core.plugins import servicescan
 
 class NmapHTTP(servicescan.ServiceScan):
     _alias_ = "nmap-http"
-    _tags = ["http", "safe", "default2"]
+    _tags = ["http", "safe", "default"]
     _version_ = "0.0.1"
     toolname = "nmap"
 
@@ -19,10 +19,7 @@ class NmapHTTP(servicescan.ServiceScan):
         # search version information
         pattern = re.compile(r"(open\W*)(http*[-\w]*)(.*[\d]+.*)")
         proofs = self.proof_from_regex_oneline(cmd, pattern, output, highlight_group=3)
-        #if pattern.search(output):
-        #    proof = re.sub(pattern, r"§§\3§§", output)
-        #    proof = "```\n$ %s\n%s\n```" % (cmd, proof)
         if proofs:
             service.add_vulnerability(
-                "version-information", proofs, self
+                "version_info", proofs, self
             )

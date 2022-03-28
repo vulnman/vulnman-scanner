@@ -6,7 +6,7 @@ from autorecon.core.vulns import Proof
 class HTTPCheck(servicescan.ServiceScan):
     _alias_ = 'http-check'
     _version_ = '0.0.1'
-    _tags = ["default", "safe", "http", "test"]
+    _tags = ["default", "safe", "http"]
     toolname = "curl"
 
     def configure(self):
@@ -16,7 +16,7 @@ class HTTPCheck(servicescan.ServiceScan):
 
     async def run(self, service):
         if service.protocol == 'tcp':
-            await service.execute('curl -sSik {http_scheme}://{addressv6}:{port}' + self.get_option('path'), outfile='{protocol}_{port}_{http_scheme}_curl.txt')
+            await service.execute(self, 'curl -sSik {http_scheme}://{addressv6}:{port}' + self.get_option('path'), outfile='{protocol}_{port}_{http_scheme}_curl.txt')
 
     async def on_plugin_end(self, output, cmd, target=None, service=None):
         pattern = re.compile(r"(Server:\W{1}.*)")
@@ -26,5 +26,14 @@ class HTTPCheck(servicescan.ServiceScan):
             proofs = [
                 Proof(self, cmd, text_proof)
             ]
-            self.logger.error(str(target.__dict__))
             service.add_vulnerability("version_info", proofs, self)
+        #self.check_x_powered_by(output, cmd, service)
+    """
+    def check_x_powered_by(self, output, cmd, service):
+        pattern = re.compile(r"(X-Powered-By:\s)(.*)")
+        proofs = self.proof_from_regex_oneline(cmd, pattern, output)
+        if proofs:
+            for proof in proofs:
+                proof.set_description("The version information *%s* was found in the *X-Powered-By* HTTP header" % proof.matched_value)
+            service.add_vulnerability("version_info", proofs, self)
+    """

@@ -102,7 +102,7 @@ class Target:
 
 		return process, stdout, stderr
 
-class Service:
+class Service2:
 
 	def __init__(self, protocol, port, name, secure=False):
 		self.target = None
@@ -220,7 +220,7 @@ class Service:
 
 		return process, stdout, stderr
 
-	def add_vulnerability(self, vuln_id, proofs, plugin):
+	def add_vulnerability(self, vuln_id, proofs, plugin, name=None):
 		vuln_exists = False
 		for vuln in self.vulnerabilities:
 			if vuln.vuln_id == vuln_id:
@@ -229,7 +229,7 @@ class Service:
 					vuln.add_proof(proof)
 				break
 		if not vuln_exists:
-			vuln = Vulnerability(vuln_id, plugin.autorecon)
+			vuln = Vulnerability(vuln_id, plugin.autorecon, name=name)
 			for proof in proofs:
 				vuln.add_proof(proof)
 			self.vulnerabilities.append(vuln)

@@ -87,17 +87,20 @@ class Plugin(object):
         proofs = None
         if matched:
             if highlight_group:
+                matched_value = None
                 text_proof = "```\n$ %s\n[...]\n" % (cmd)
                 for index in range(1, len(matched.groups())+1):
                     if highlight_group == index:
                         text_proof += "§§%s§§" % matched.group(index)
+                        matched_value = matched.group(index)
                     else:
                         text_proof += matched.group(index)
                 text_proof += "\n[...]\n```"
             else:
                 text_proof = "```\n$ %s\n[...]\n§§%s§§\n[...]\n```" % (cmd, matched.group())
+                matched_value = matched.group()
             proofs = [
-                Proof(self, cmd, text_proof)
+                Proof(self, cmd, text_proof, matched_value=matched_value)
             ]
         return proofs
 

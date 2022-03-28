@@ -15,7 +15,7 @@ class SSLScan(servicescan.ServiceScan):
 
     async def run(self, service):
         if service.protocol == 'tcp' and service.secure:
-            await service.execute('sslscan --show-certificate --no-colour {addressv6}:{port} 2>&1', outfile='{protocol}_{port}_sslscan.txt')
+            await service.execute(self, 'sslscan --show-certificate --no-colour {addressv6}:{port} 2>&1', outfile='{protocol}_{port}_sslscan.txt')
 
     async def on_plugin_end(self, output, cmd, target=None, service=None):
         self.check_tls10(output, cmd, service)
@@ -28,14 +28,12 @@ class SSLScan(servicescan.ServiceScan):
         pattern = re.compile(r"(TLSv1.0\W+enabled)")
         proofs = self.proof_from_regex_oneline(cmd, pattern, output)
         if proofs:
-            self.logger.debug(str(proofs[-1].text_proof))
             service.add_vulnerability("tls-1.0-enabled", proofs, self)
 
     def check_tls11(self, output, cmd, service):
         pattern = re.compile(r"(TLSv1.1\W+enabled)")
         proofs = self.proof_from_regex_oneline(cmd, pattern, output)
         if proofs:
-            self.logger.debug(str(proofs[-1].text_proof))
             service.add_vulnerability("tls-1.1-enabled", proofs, self)
 
     def check_ca_true(self, output, cmd, service):

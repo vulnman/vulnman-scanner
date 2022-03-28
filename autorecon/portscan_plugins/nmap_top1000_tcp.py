@@ -4,7 +4,7 @@ from autorecon.config import config
 
 class QuickTCPPortScan(portscan.PortScan):
     _alias_ = "top-tcp-ports"
-    _tags = ["default", "default-port-scan", "test"]
+    _tags = ["default", "default-port-scan"]
     priority = 0
 
     def __init__(self, autorecon):

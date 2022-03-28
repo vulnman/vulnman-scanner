@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import final
 from autorecon.config import config
 from autorecon.io import slugify, info, warn, error, fail, CommandStreamReader
-from autorecon.targets import Service
+from autorecon.core import assets
 from autorecon.utils.logger import Logger
 from autorecon.core.plugins import servicescan
 from autorecon.core.plugins import portscan
@@ -268,7 +268,7 @@ class AutoRecon(object):
 			if service.startswith('ssl/') or service.startswith('tls/'):
 				service = service[4:]
 
-			return Service(protocol, port, service, secure)
+			return assets.Service(protocol, port, service, secure)
 		else:
 			return None
 

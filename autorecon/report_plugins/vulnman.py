@@ -24,7 +24,7 @@ class Vulnman(report.ReportPlugin):
 				service = client.add_service(host["uuid"], service_obj.name, 
 					service_obj.port, service_obj.protocol)
 				for vuln_obj in service_obj.vulnerabilities:
-					asset_display = "%s/%s %s" % (service_obj.protocol, service_obj.port, service_obj.name) 
+					asset_display = "%s/%s %s (%s)" % (service_obj.protocol, service_obj.port, service_obj.name, target.ip) 
 					vuln = client.check_and_get_vulnerability(
 						vuln_obj.name, asset_display, "service", vuln_obj.vuln_id)
 					if not vuln:
@@ -33,5 +33,6 @@ class Vulnman(report.ReportPlugin):
 						)
 						for proof_obj in vuln_obj.proofs:
 							proof = client.add_text_proof(
-								vuln["uuid"], proof_obj.plugin.name, proof_obj.text_proof
+								vuln["uuid"], proof_obj.plugin.name, proof_obj.text_proof,
+								description=proof_obj.description
 							)
