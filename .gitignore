@@ -1,6 +1,7 @@
 __pycache__
 *.pyc
 results/
-*.state
 venv
 myconfigs
+.idea
+.vscode

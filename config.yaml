@@ -1,15 +1,11 @@
-verbose: 2
+verbose: 1
 max-scans: 10
-
-#force-services:
-#  - tcp/8000/http/insecure
 
 # scan plugins
 tags: 
-  - http-check
-  - ssh
   - default-port-scan
   - default
+
 exclude-tags: "long"
 
 # Report Plugins
