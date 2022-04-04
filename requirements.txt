@@ -1,6 +1,5 @@
-appdirs
-colorama
-unidecode
-pluginlib
-pyaml
-requests
+colorama==0.4.4
+unidecode==1.3.4
+pluginlib==0.9.0
+pyaml==21.10.1
+requests==2.27.1

@@ -36,7 +36,7 @@ class Service(object):
         d = d.format(
             http_scheme=self.http_scheme, address=self.target.address,
             scandir=self.target.scandir, addressv6=self.target.address,
-            port=self.port, protocol=self.protocol, test=self.name
+            port=self.port, protocol=self.protocol
         )
         return d
 

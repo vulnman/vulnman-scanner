@@ -1,149 +1,38 @@
 #!/usr/bin/python3
 
-import argparse, asyncio, inspect, ipaddress, math, os, re, select, shutil, signal, socket, sys, termios, \
+import argparse, asyncio, inspect, ipaddress, math, os, re, signal, socket, sys, termios, \
     time, traceback, tty
-from datetime import datetime
 
 try:
-    import appdirs, colorama, unidecode, yaml
-    from colorama import Fore, Style
+    import colorama
+    from colorama import Fore
+    import yaml
 except ModuleNotFoundError:
     print('One or more required modules was not installed. Please run or re-run: ' + (
         'sudo ' if os.getuid() == 0 else '') + 'python3 -m pip install -r requirements.txt')
     sys.exit(1)
 
-colorama.init()
-
 from autorecon.config import config, configurable_keys, configurable_boolean_keys
 from autorecon.io import e
 from autorecon.plugins import AutoRecon
 from autorecon.targets import Target
-from vulnman.core import tasks
 from vulnman.core import assets
 from vulnman.core.utils.slugify import slugify
 from vulnman.core.utils.logging import logger
 from vulnman.scanner.plugins.core import PortScanPlugin, ServiceScanPlugin
+from vulnman.scanner.utils import tasks as task_utils
+from vulnman.scanner import tasks
 
-VERSION = "2.0.17"
-"""
-if not os.path.exists(config['config_dir']):
-    shutil.rmtree(config['config_dir'], ignore_errors=True, onerror=None)
-    os.makedirs(config['config_dir'], exist_ok=True)
-    open(os.path.join(config['config_dir'], 'VERSION-' + VERSION), 'a').close()
-    shutil.copytree(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'default-plugins'),
-                    os.path.join(config['config_dir'], 'plugins'))
-# shutil.copytree(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'wordlists'), os.path.join(config['config_dir'], 'wordlists'))
-else:
-    if not os.path.exists(os.path.join(config['config_dir'], 'config.toml')):
-        shutil.copy(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'config.toml'),
-                    os.path.join(config['config_dir'], 'config.toml'))
-    if not os.path.exists(os.path.join(config['config_dir'], 'global.toml')):
-        shutil.copy(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'global.toml'),
-                    os.path.join(config['config_dir'], 'global.toml'))
-    if not os.path.exists(os.path.join(config['config_dir'], 'plugins')):
-        shutil.copytree(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'default-plugins'),
-                        os.path.join(config['config_dir'], 'plugins'))
-    # if not os.path.exists(os.path.join(config['config_dir'], 'wordlists')):
-    #		shutil.copytree(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'wordlists'), os.path.join(config['config_dir'], 'wordlists'))
-    if not os.path.exists(os.path.join(config['config_dir'], 'VERSION-' + VERSION)):
-        logger.warn('It looks like the config/plugins in ' + config['config_dir'] + ' are outdated. Please remove the ' +
-             config['config_dir'] + ' directory and re-run AutoRecon to rebuild them.')
-"""
+
+VERSION = "0.0.1"
+
+colorama.init()
+
 # Save current terminal settings so we can restore them.
 terminal_settings = termios.tcgetattr(sys.stdin.fileno())
 
 autorecon = AutoRecon()
 autorecon.import_vulnerability_templates()
-
-
-def cancel_all_tasks(signal, frame):
-    for task in asyncio.all_tasks():
-        task.cancel()
-
-    for target in autorecon.scanning_targets:
-        for process_list in target.running_tasks.values():
-            for process_dict in process_list['processes']:
-                try:
-                    process_dict['process'].kill()
-                except ProcessLookupError:  # Will get raised if the process finishes before we get to killing it.
-                    pass
-
-    if not config['disable_keyboard_control']:
-        # Restore original terminal settings.
-        termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, terminal_settings)
-
-
-async def start_heartbeat(target, period=60):
-    while True:
-        await asyncio.sleep(period)
-        async with target.lock:
-            count = len(target.running_tasks)
-
-            tasks_list = ''
-            if config['verbose'] >= 1:
-                tasks_list = ': {bblue}' + ', '.join(target.running_tasks.keys()) + '{rst}'
-
-            current_time = datetime.now().strftime('%H:%M:%S')
-
-            if count > 1:
-                logger.info('{bgreen}' + current_time + '{rst} - There are {byellow}' + str(
-                    count) + '{rst} scans still running against {byellow}' + target.address + '{rst}' + tasks_list)
-            elif count == 1:
-                logger.info(
-                    '{bgreen}' + current_time + '{rst} - There is {byellow}1{rst} scan still running against {byellow}' + target.address + '{rst}' + tasks_list)
-
-
-async def keyboard():
-    input = ''
-    while True:
-        if select.select([sys.stdin], [], [], 0.1)[0]:
-            input += sys.stdin.buffer.read1(-1).decode('utf8')
-            while input != '':
-                if len(input) >= 3:
-                    if input[:3] == '\x1b[A':
-                        input = ''
-                        if config['verbose'] == 3:
-                            logger.info('Verbosity is already at the highest level.')
-                        else:
-                            config['verbose'] += 1
-                            logger.info('Verbosity increased to ' + str(config['verbose']))
-                    elif input[:3] == '\x1b[B':
-                        input = ''
-                        if config['verbose'] == 0:
-                            logger.info('Verbosity is already at the lowest level.')
-                        else:
-                            config['verbose'] -= 1
-                            logger.info('Verbosity decreased to ' + str(config['verbose']))
-                    else:
-                        if input[0] != 's':
-                            input = input[1:]
-
-                if len(input) > 0 and input[0] == 's':
-                    input = input[1:]
-                    for target in autorecon.scanning_targets:
-                        count = len(target.running_tasks)
-
-                        tasks_list = []
-                        if config['verbose'] >= 1:
-                            for key, value in target.running_tasks.items():
-                                elapsed_time = tasks.calculate_elapsed_time(value['start'], short=True)
-                                tasks_list.append('{bblue}' + key + '{rst}' + ' (elapsed: ' + elapsed_time + ')')
-
-                            tasks_list = ':\n    ' + '\n    '.join(tasks_list)
-                        else:
-                            tasks_list = ''
-
-                        current_time = datetime.now().strftime('%H:%M:%S')
-
-                        if count > 1:
-                            logger.info('{bgreen}' + current_time + '{rst} - There are {byellow}' + str(
-                                count) + '{rst} scans still running against {byellow}' + target.address + '{rst}' + tasks_list)
-                        elif count == 1:
-                            logger.info(
-                                '{bgreen}' + current_time + '{rst} - There is {byellow}1{rst} scan still running against {byellow}' + target.address + '{rst}' + tasks_list)
-                else:
-                    input = input[1:]
-        await asyncio.sleep(0.1)
 
 
 async def get_semaphore(autorecon):
@@ -269,7 +158,7 @@ async def port_scan(plugin, target):
                         else:
                             file.writelines('\n')
 
-        elapsed_time = tasks.calculate_elapsed_time(start_time)
+        elapsed_time = task_utils.calculate_elapsed_time(start_time)
 
         async with target.lock:
             target.running_tasks.pop(plugin.slug, None)
@@ -355,9 +244,6 @@ async def service_scan(plugin, service):
                     addressv6 = '[' + addressv6 + ']'
                 ipaddressv6 = '[' + ipaddressv6 + ']'
 
-            if config['proxychains'] and protocol == 'tcp':
-                nmap_extra += ' -sT'
-
             tag = service.tag + '/' + plugin.slug
 
             logger.info(
@@ -419,7 +305,7 @@ async def service_scan(plugin, service):
                             else:
                                 file.writelines('\n')
 
-            elapsed_time = tasks.calculate_elapsed_time(start_time)
+            elapsed_time = task_utils.calculate_elapsed_time(start_time)
 
             async with service.target.lock:
                 service.target.running_tasks.pop(tag, None)
@@ -485,7 +371,7 @@ async def scan_target(target):
 
     pending = []
 
-    heartbeat = asyncio.create_task(start_heartbeat(target, period=config['heartbeat']))
+    heartbeat = asyncio.create_task(tasks.start_heartbeat(target, period=config['heartbeat']))
 
     services = []
     if config['force_services']:
@@ -497,7 +383,7 @@ async def scan_target(target):
                 forced_service)
             if match:
                 protocol = match.group('protocol')
-                if config['proxychains'] and protocol == 'udp':
+                if config.get('proxychains') and protocol == 'udp':
                     logger.error('The service ' + forced_service + ' uses UDP and --proxychains is enabled. Skipping.',
                           verbosity=2)
                     continue
@@ -519,8 +405,6 @@ async def scan_target(target):
             return
     else:
         for plugin in target.autorecon.plugin_types['port']:
-            if config['proxychains'] and plugin.type == 'udp':
-                continue
 
             if config['port_scans'] and plugin.slug in config['port_scans']:
                 matching_tags = True
@@ -627,9 +511,6 @@ async def scan_target(target):
                 if addressv6 == target.ip:
                     addressv6 = '[' + addressv6 + ']'
                 ipaddressv6 = '[' + ipaddressv6 + ']'
-
-            if config['proxychains'] and protocol == 'tcp':
-                nmap_extra += ' -sT'
 
             service_match = False
             matching_plugins = []
@@ -844,7 +725,7 @@ async def scan_target(target):
         done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED, timeout=1)
 
     heartbeat.cancel()
-    elapsed_time = tasks.calculate_elapsed_time(start_time)
+    elapsed_time = task_utils.calculate_elapsed_time(start_time)
 
     if timed_out:
 
@@ -973,7 +854,7 @@ async def run():
     autorecon.argparse = parser
 
     if args.version:
-        print('AutoRecon v' + VERSION)
+        print('Vulnman-Scanner v' + VERSION)
         sys.exit(0)
 
     def unknown_help():
@@ -1453,7 +1334,7 @@ async def run():
 
     if not config['disable_keyboard_control']:
         tty.setcbreak(sys.stdin.fileno())
-        keyboard_monitor = asyncio.create_task(keyboard())
+        keyboard_monitor = asyncio.create_task(tasks.keyboard(autorecon))
 
     timed_out = False
     while pending:
@@ -1461,7 +1342,7 @@ async def run():
 
         # If something failed in scan_target, autorecon.errors will be true.
         if autorecon.errors:
-            cancel_all_tasks(None, None)
+            tasks.cancel_all_tasks(None, None, autorecon, terminal_settings)
             sys.exit(1)
 
         # Check if global timeout has occurred.
@@ -1526,9 +1407,9 @@ async def run():
             done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED, timeout=1)
 
     if timed_out:
-        cancel_all_tasks(None, None)
+        tasks.cancel_all_tasks(None, None, autorecon, terminal_settings)
 
-        elapsed_time = tasks.calculate_elapsed_time(start_time)
+        elapsed_time = task_utils.calculate_elapsed_time(start_time)
         logger.warn('{byellow}AutoRecon took longer than the specified timeout period (' + str(
             config['timeout']) + ' min). Cancelling all scans and exiting.{rst}')
     else:
@@ -1536,7 +1417,7 @@ async def run():
                 asyncio.all_tasks()) > 1:  # this code runs in the main() task so it will be the only task left running
             await asyncio.sleep(1)
 
-        elapsed_time = tasks.calculate_elapsed_time(start_time)
+        elapsed_time = task_utils.calculate_elapsed_time(start_time)
         logger.info('{bright}Finished scanning all targets in ' + elapsed_time + '!{rst}')
         logger.info(
             '{bright}Don\'t forget to check out more commands to run manually in the _manual_commands.txt file in '
@@ -1550,6 +1431,10 @@ async def run():
     if not config['disable_keyboard_control']:
         # Restore original terminal settings.
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, terminal_settings)
+
+
+def cancel_all_tasks(sig, frame):
+    return task_utils.cancel_all_tasks(sig, frame, autorecon, terminal_settings)
 
 
 def main():

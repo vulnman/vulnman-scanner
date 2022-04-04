@@ -23,6 +23,7 @@ class Whatweb(plugins.ServiceScanPlugin):
             await service.execute(self, cmd)
 
     async def on_plugin_end(self, output, cmd, target=None, service=None):
+        return
         result_file = service.parse_string_vals(
             "{scandir}/{protocol}{port}/{protocol}_{port}_{http_scheme}_whatweb.json")
         with open(result_file, "r") as f:

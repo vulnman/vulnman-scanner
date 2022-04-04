@@ -108,3 +108,38 @@ class Plugin(object):
 
     def get_proof_from_data(self, cmd, text_proof):
         return Proof(self, cmd, text_proof)
+
+    def proof_from_regex_multiline(self, cmd, patterns, output, highlight_groups=None):
+        text_proof = "```\n$ %s\n[...]\n" % cmd
+        one_match_found = False
+        for pattern in patterns:
+            matched = re.search(pattern, output)
+            if matched:
+                text_proof += "§§%s§§\n" % matched.group()
+                if not one_match_found:
+                    one_match_found = True
+        if not one_match_found:
+            return None
+        text_proof += "```"
+        proofs = [
+            Proof(self, cmd, text_proof)
+        ]
+        return proofs
+
+    def proof_from_patterns(self, cmd, patterns, output, highlighting_groups=None):
+        text_proof = "```\n$ %s\n" % cmd
+        for line in output:
+            match_found = False
+            for pattern in patterns:
+                matched = re.search(pattern, line)
+                if matched:
+                    text_proof += "§§%s§§\n" % matched.group()
+                    match_found = True
+                    break
+            if not match_found:
+                text_proof += line + "\n"
+        text_proof += "```"
+        proofs = [
+            Proof(self, cmd, text_proof)
+        ]
+        return proofs

@@ -7,6 +7,7 @@ class SSLScan(plugins.ServiceScanPlugin):
     _alias_ = 'sslscan'
     _version_ = '0.0.1'
     _tags = ["default", "safe", "tls", "ssl"]
+    toolname = "sslscan"
 
     def configure(self):
         self.match_all_service_names(True)
@@ -24,6 +25,8 @@ class SSLScan(plugins.ServiceScanPlugin):
         self.check_cert_expired(output, cmd, service)
         self.check_cipher_suites(output, cmd, service)
         self.check_dheater(output, cmd, service)
+        self.check_cert_long_lifespan(output, cmd, service)
+        self.check_wildcard_cert(output, cmd, service)
 
     def check_tls10(self, output, cmd, service):
         pattern = re.compile(r"(TLSv1.0\W+enabled)")
@@ -46,7 +49,6 @@ class SSLScan(plugins.ServiceScanPlugin):
     def check_cert_expired(self, output, cmd, service):
         date_format = r"%b %d %H:%M:%S %Y %Z"
         # group 2 is the date
-        # pattern_date_start = re.compile(r"(Not valid before:\s)([\w \d:]*\d{4})")
         pattern_date_end = re.compile(r"(Not valid after:\s)([\w \d:]*\d{4} GMT)")
         match = pattern_date_end.search(output)
         if not match:
@@ -54,6 +56,23 @@ class SSLScan(plugins.ServiceScanPlugin):
         if datetime.datetime.now() > datetime.datetime.strptime(match.group(2), date_format):
             proofs = self.proof_from_regex_oneline(cmd, pattern_date_end, output)
             service.add_vulnerability("cert-expired", proofs, self)
+
+    def check_cert_long_lifespan(self, output, cmd, service):
+        date_format = r"%b %d %H:%M:%S %Y %Z"
+        # group 2 is the date
+        pattern_date_start = re.compile(r"(Not valid before:\s)([\w \d:]*\d{4} GMT)")
+        pattern_date_end = re.compile(r"(Not valid after:\s)([\w \d:]*\d{4} GMT)")
+        match_date_end = pattern_date_end.search(output)
+        match_date_start = pattern_date_start.search(output)
+        if not match_date_start and not match_date_end:
+            return
+        date_start = datetime.datetime.strptime(match_date_start.group(2), date_format)
+        date_end = datetime.datetime.strptime(match_date_end.group(2), date_format)
+        days_diff = (date_end - date_start).days
+        if days_diff > 100:
+            patterns = [pattern_date_start, pattern_date_end]
+            proofs = self.proof_from_regex_multiline(cmd, patterns, output)
+            service.add_vulnerability("cert-long-lifespan", proofs, self)
 
     def check_cipher_suites(self, output, cmd, service):
         required_key_size = 128
@@ -85,3 +104,19 @@ class SSLScan(plugins.ServiceScanPlugin):
             text_proof += "```"
             proofs.append(self.get_proof_from_data(cmd, text_proof))
             service.add_vulnerability("dheater", proofs, self)
+
+    def check_wildcard_cert(self, output, cmd, service):
+        pattern = re.compile(r"(Altnames:|Subject:)(.*)([DNS:]?)(\*[\w\-.]+)")
+        matched = pattern.search(output)
+        if not matched:
+            return
+        if not matched.group(4):
+            return
+        text_proof = "```\n$ %s\n[...]\n" % cmd
+        for match in pattern.finditer(output):
+            text_proof += "§§%s§§\n[...]\n" % match.group()
+        text_proof += "```"
+        proofs = [self.get_proof_from_data(cmd, text_proof)]
+        for proof in proofs:
+            proof.set_description("The service uses a wildcard certificate for `%s`" % matched.group(4))
+        service.add_vulnerability("wildcard-cert", proofs, self)

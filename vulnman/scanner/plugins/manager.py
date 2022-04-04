@@ -9,3 +9,12 @@ class PluginManager(object):
         if plugin_type:
             return self.loader.plugins.get(plugin_type)
         return self.loader.plugins
+
+    def get_portscan_plugins(self):
+        return self.get_plugins("portscan")
+
+    def get_servicescan_plugins(self):
+        return self.get_plugins("servicescan")
+
+    def get_report_plugins(self):
+        return self.get_plugins("report")

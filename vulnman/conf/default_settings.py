@@ -1,6 +1,5 @@
-
-VERBOSE = 1
-verbose = 1
+# VULNMAN-Scanner default settings
+VERBOSE = 0
 
 MAX_SCANS = 10
 

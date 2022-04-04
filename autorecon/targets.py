@@ -22,6 +22,13 @@ class Target:
 		self.scans = {'ports': {}, 'services': {}}
 		self.running_tasks = {}
 
+	def parse_string_vals(self, d):
+		d = d.format(
+			address=self.address, scandir=self.scandir, ip=self.ip,
+			reportdir=self.reportdir, basedir=self.basedir, ipversion=self.ipversion
+		)
+		return d
+
 	async def add_service(self, service):
 		async with self.lock:
 			self.pending_services.append(service)

@@ -13,7 +13,7 @@ class AllTCPPortScan(PortScan):
 		self.tags = ['default', 'default-port-scan', 'long']
 
 	async def run(self, target):
-		if config['proxychains']:
+		if config.get('proxychains'):
 			traceroute_os = ''
 		else:
 			traceroute_os = ' -A --osscan-guess'
