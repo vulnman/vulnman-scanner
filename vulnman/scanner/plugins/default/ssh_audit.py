@@ -12,7 +12,7 @@ class SSHAudit(plugins.ServiceScanPlugin):
 
     async def run(self, service):
         if service.protocol == 'tcp':
-            cmd = "ssh-audit -p {port} {address}"
+            cmd = "ssh-audit -n -p {port} {address}"
             await service.execute(self, cmd, outfile='{scandir}/{protocol}{port}/{protocol}_{port}_sshaudit.txt')
 
     async def on_plugin_end(self, output, cmd, target=None, service=None):

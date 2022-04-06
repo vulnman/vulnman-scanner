@@ -1,5 +1,17 @@
 import asyncio
+import string
+import sys
 from vulnman.core.utils.logging import logger
+
+
+def e(*args, frame_index=1, **kvargs):
+    # TODO: replace this one
+    frame = sys._getframe(frame_index)
+    vals = {}
+    vals.update(frame.f_globals)
+    vals.update(frame.f_locals)
+    vals.update(kvargs)
+    return string.Formatter().vformat(' '.join(args), args, vals)
 
 
 class CommandStreamReader(object):

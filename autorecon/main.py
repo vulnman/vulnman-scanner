@@ -13,15 +13,15 @@ except ModuleNotFoundError:
     sys.exit(1)
 
 from autorecon.config import config, configurable_keys, configurable_boolean_keys
-from autorecon.io import e
-from autorecon.plugins import AutoRecon
 from autorecon.targets import Target
 from vulnman.core import assets
+from vulnman.core.utils.io import e
 from vulnman.core.utils.slugify import slugify
 from vulnman.core.utils.logging import logger
 from vulnman.scanner.plugins.core import PortScanPlugin, ServiceScanPlugin
 from vulnman.scanner.utils import tasks as task_utils
 from vulnman.scanner import tasks
+from vulnman.scanner.vulnscanner import VulnmanScanner
 
 
 VERSION = "0.0.1"
@@ -31,9 +31,9 @@ colorama.init()
 # Save current terminal settings so we can restore them.
 terminal_settings = termios.tcgetattr(sys.stdin.fileno())
 
-autorecon = AutoRecon()
+autorecon = VulnmanScanner()
 autorecon.import_vulnerability_templates()
-
+logger.info("Loaded %s vulnerability templates!" % len(autorecon.vulnerability_templates))
 
 async def get_semaphore(autorecon):
     semaphore = autorecon.service_scan_semaphore

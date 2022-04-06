@@ -6,7 +6,7 @@ from vulnman.scanner.plugins import core as plugins
 class Whatweb(plugins.ServiceScanPlugin):
     _alias_ = 'whatweb'
     _version_ = '0.0.1'
-    _tags = ["default", "safe", "http"]
+    _tags = ["safe", "http"]
 
     def configure(self):
         self.match_service_name('^http')
@@ -23,7 +23,6 @@ class Whatweb(plugins.ServiceScanPlugin):
             await service.execute(self, cmd)
 
     async def on_plugin_end(self, output, cmd, target=None, service=None):
-        return
         result_file = service.parse_string_vals(
             "{scandir}/{protocol}{port}/{protocol}_{port}_{http_scheme}_whatweb.json")
         with open(result_file, "r") as f:
@@ -34,6 +33,7 @@ class Whatweb(plugins.ServiceScanPlugin):
                     for version in plugin.get('version', []):
                         data = "```bash\n$ %s\n```" % service.parse_string_vals(
                             "whatweb --color=never --no-errors -a 3 -v {http_scheme}://{address}:{port}")
+                        data += str(result)
                         proof = self.get_proof_from_data(cmd, data)
                         proof.set_description("The software *%s* was found in version *%s*." % (plugin_name, version))
                         proofs.append(proof)

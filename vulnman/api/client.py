@@ -56,8 +56,8 @@ class VulnmanClient(Client):
             raise UnexpectedStatusCode("Login failed with status code: %s" % response.status_code)
         self._headers.update({"X-CSRFToken": csrf_token.group(4)})
 
-    def add_or_get_host(self, ip, dns=None, accessability=None):
-        payload = {"ip": ip, "project": self.get_active_project()}
+    def add_or_get_host(self, ip, dns=None, accessibility=None):
+        payload = {"ip": ip, "project": self.get_active_project(), "dns": dns}
         endpoint = "/api/v1/assets/hosts/"
         resp = self._post(endpoint, payload)
         if not resp.status_code == 201:

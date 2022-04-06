@@ -24,6 +24,7 @@ class NmapSSH(plugins.ServiceScanPlugin):
 
     def check_banner(self, output, cmd, service):
         pattern = re.compile(r"(_banner:)(.*\d+.*)")
+        cmd = service.parse_string_vals('nmap -sV -p {port} --script="banner,ssh-auth-methods {address}')
         proofs = self.proof_from_regex_oneline(cmd, pattern, output)
         if proofs:
             service.add_vulnerability("version_info", proofs, self, name="SSH")

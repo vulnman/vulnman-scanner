@@ -1,7 +1,7 @@
 import asyncio, inspect, os
 from typing import final
 from vulnman.core.utils.logging import logger
-from autorecon.io import e
+from vulnman.core.utils.io import e
 
 
 class Target:

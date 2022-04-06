@@ -101,4 +101,6 @@ class Service(object):
             self.vulnerabilities.append(vuln)
             logger.info("{bmagenta}[Vulnerability found]{rst} {byellow}%s{rst} by plugin %s" % (
                 vuln.name, proofs[0].plugin.name))
+            if not vuln.name:
+                logger.fail("Vulnerability does not exist: %s" % str(vuln.__dict__))
             return vuln

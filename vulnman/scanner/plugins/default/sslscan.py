@@ -8,6 +8,7 @@ class SSLScan(plugins.ServiceScanPlugin):
     _version_ = '0.0.1'
     _tags = ["default", "safe", "tls", "ssl"]
     toolname = "sslscan"
+    command = "sslscan --show-certificate --no-colour {address}:{port}"
 
     def configure(self):
         self.match_all_service_names(True)
@@ -15,10 +16,11 @@ class SSLScan(plugins.ServiceScanPlugin):
 
     async def run(self, service):
         if service.protocol == 'tcp' and service.secure:
-            await service.execute(self, 'sslscan --show-certificate --no-colour {addressv6}:{port} 2>&1',
-                                  outfile='{scandir}/{protocol}{port}/{protocol}_{port}_sslscan.txt')
+            cmd = self.command + " 2>&1"
+            await service.execute(self, cmd, outfile='{scandir}/{protocol}{port}/{protocol}_{port}_sslscan.txt')
 
     async def on_plugin_end(self, output, cmd, target=None, service=None):
+        cmd = service.parse_string_vals(self.command)
         self.check_tls10(output, cmd, service)
         self.check_tls11(output, cmd, service)
         self.check_ca_true(output, cmd, service)
@@ -59,6 +61,7 @@ class SSLScan(plugins.ServiceScanPlugin):
 
     def check_cert_long_lifespan(self, output, cmd, service):
         date_format = r"%b %d %H:%M:%S %Y %Z"
+        max_lifespan_days = 200
         # group 2 is the date
         pattern_date_start = re.compile(r"(Not valid before:\s)([\w \d:]*\d{4} GMT)")
         pattern_date_end = re.compile(r"(Not valid after:\s)([\w \d:]*\d{4} GMT)")
@@ -69,7 +72,7 @@ class SSLScan(plugins.ServiceScanPlugin):
         date_start = datetime.datetime.strptime(match_date_start.group(2), date_format)
         date_end = datetime.datetime.strptime(match_date_end.group(2), date_format)
         days_diff = (date_end - date_start).days
-        if days_diff > 100:
+        if days_diff > max_lifespan_days:
             patterns = [pattern_date_start, pattern_date_end]
             proofs = self.proof_from_regex_multiline(cmd, patterns, output)
             service.add_vulnerability("cert-long-lifespan", proofs, self)

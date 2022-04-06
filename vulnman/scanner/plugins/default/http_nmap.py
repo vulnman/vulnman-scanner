@@ -20,7 +20,7 @@ class NmapHTTP(plugins.ServiceScanPlugin):
     async def on_plugin_end(self, output, cmd, target=None, service=None):
         # search version information
         pattern = re.compile(r"(open\W*)(http*[-\w]*)(\s+)(.*[\d]+.*)")
-        cmd = service.parse_string_vals("nmap -sV -p {port} {address}")
+        cmd = service.parse_string_vals("nmap -sV -sC -p {port} {address}")
         proofs = self.proof_from_regex_oneline(cmd, pattern, output, highlight_group=4)
         if proofs:
             service.add_vulnerability("version_info", proofs, self)
