@@ -17,8 +17,8 @@ class Plugin(object):
     @property
     def tags(self):
         tags = self._tags.copy()
-        #if self.name not in tags:
-        #    tags.append(self.name)
+        if self.name not in tags:
+            tags.append(self.name)
         return tags
 
     def get_description(self):

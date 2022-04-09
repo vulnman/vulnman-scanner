@@ -2,7 +2,7 @@ verbose: 1
 max-scans: 10
 
 # scan plugins
-tags: 
+tags:
   - default-port-scan
   - default
 

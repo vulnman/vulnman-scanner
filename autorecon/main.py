@@ -33,12 +33,16 @@ terminal_settings = termios.tcgetattr(sys.stdin.fileno())
 
 autorecon = VulnmanScanner()
 autorecon.import_vulnerability_templates()
-logger.info("Loaded %s vulnerability templates!" % len(autorecon.vulnerability_templates))
+logger.info(
+    "Loaded %s vulnerability templates!" % len(
+        autorecon.vulnerability_templates))
+
 
 async def get_semaphore(autorecon):
     semaphore = autorecon.service_scan_semaphore
     while True:
-        # If service scan semaphore is locked, see if we can use port scan semaphore.
+        # If service scan semaphore is locked,
+        # see if we can use port scan semaphore.
         if semaphore.locked():
             # This will be true unless user sets max_scans == max_port_scans
             if semaphore != autorecon.port_scan_semaphore:
@@ -48,7 +52,8 @@ async def get_semaphore(autorecon):
                     for process_list in target.running_tasks.values():
                         if issubclass(process_list['plugin'].__class__, PortScanPlugin):
                             port_scan_task_count += 1
-                # If no more targets, and we have room, use port scan semaphore.
+                # If no more targets, and we have room,
+                # use port scan semaphore.
                 if not autorecon.pending_targets and (config['max_port_scans'] - port_scan_task_count) >= 1:
                     if autorecon.port_scan_semaphore.locked():
                         await asyncio.sleep(1)
@@ -889,15 +894,6 @@ async def run():
             config['global_file'] = args_dict['global_file']
 
     autorecon.load_plugins()
-    for plugin in autorecon.plugins.values():
-        if plugin.slug in autorecon.taglist:
-            unknown_help()
-            logger.fail(
-                'Plugin ' + plugin.name + ' has a slug (' + plugin.slug + ') with the same name as a tag. '
-                                                                          'Please either change the plugin name '
-                                                                          'or override the slug.')
-    # Add plugin slug to tags.
-    # plugin.tags += [plugin.slug]
 
     if len(autorecon.plugin_types['port']) == 0:
         unknown_help()

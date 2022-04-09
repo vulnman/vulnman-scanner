@@ -33,6 +33,52 @@ class Client(object):
 
 
 class VulnmanClient(Client):
+    def create_host(self, ip, dns=None, accessibility=None):
+        payload = {"ip": ip, "dns": dns}
+        if accessibility:
+            payload["accessbility"] = accessibility
+        endpoint = "/api/v2/hosts/"
+        resp = self._post(endpoint, payload)
+        if resp.status_code not in [200, 201]:
+            raise UnexpectedStatusCode(resp.json())
+        return resp.json()
+
+    def create_service(self, host_id, name, port, protocol, state=None):
+        payload = {
+            "host": host_id, "name": name, "port": port,
+            "protocol": protocol}
+        if state:
+            payload["state"] = state
+        endpoint = "/api/v2/services/"
+        resp = self._post(endpoint, payload)
+        if resp.status_code not in [200, 201]:
+            raise UnexpectedStatusCode(resp.json())
+        return resp.json()
+
+    def create_vulnerability(self, name, asset, asset_type, template_id, status=2):
+        payload = {
+            "asset": asset, "asset_type": asset_type,
+            "template_id": template_id, "status": status, "name": name
+        }
+        endpoint = "/api/v2/vulnerabilities/"
+        resp = self._post(endpoint, payload)
+        if resp.status_code not in [200, 201]:
+            raise UnexpectedStatusCode(resp.json())
+        return resp.json()
+
+    def create_text_proof(self, vulnerability_id, name, text, description=None, order=None):
+        endpoint = "/api/v2/text-proofs/"
+        payload = {
+            "vulnerability": vulnerability_id, "name": name,
+            "text": text, "description": description
+        }
+        resp = self._post(endpoint, payload)
+        if resp.status_code not in [200, 201]:
+            raise UnexpectedStatusCode(resp.json())
+        return resp.json()
+
+
+class VulnmanClient2(Client):
     active_project = None
 
     def activate_project(self, project_id):
@@ -42,19 +88,6 @@ class VulnmanClient(Client):
         if not self.active_project:
             raise Exception("No active project found!")
         return self.active_project
-
-    def login(self, username, password):
-        response = self._get("/account/login/")
-        if not response.status_code == 200:
-            raise UnexpectedStatusCode("Received status code %s fetching login page!" % response.status_code)
-        csrf_token = re.search(r'(csrfmiddlewaretoken)(.*)(value=")(.*)(")', response.text)
-        if not csrf_token:
-            raise Exception("Could not extract csrf token during login!")
-        payload = {"username": username, "password": password, "csrfmiddlewaretoken": csrf_token.group(4)}
-        response = self._post("/account/login/", payload, as_json=False)
-        if not response.status_code == 200:
-            raise UnexpectedStatusCode("Login failed with status code: %s" % response.status_code)
-        self._headers.update({"X-CSRFToken": csrf_token.group(4)})
 
     def add_or_get_host(self, ip, dns=None, accessibility=None):
         payload = {"ip": ip, "project": self.get_active_project(), "dns": dns}

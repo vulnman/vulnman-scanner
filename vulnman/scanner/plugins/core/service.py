@@ -8,6 +8,7 @@ from vulnman.scanner.plugins.core import base as baseplugin
 @pluginlib.Parent("servicescan")
 class ServiceScanPlugin(baseplugin.Plugin):
     toolname = None
+    toolnames = []
 
     def __init__(self, autorecon):
         super(ServiceScanPlugin, self).__init__(autorecon)
@@ -21,7 +22,15 @@ class ServiceScanPlugin(baseplugin.Plugin):
         self.max_target_instances = 0
         self.max_global_instances = 0
 
+    def get_toolnames(self):
+        return self.toolnames.copy()
+
     def check(self):
+        for toolname in self.get_toolnames():
+            if which(toolname) is None:
+                self.error('The %s program could not be found. Make sure it is installed.' % toolname)
+        if self.get_toolnames():
+            return
         if not self.toolname:
             toolname = self.name
         else:
