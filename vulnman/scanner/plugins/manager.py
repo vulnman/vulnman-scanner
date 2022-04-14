@@ -1,9 +1,14 @@
 import pluginlib
+from autorecon.config import config
 
 
 class PluginManager(object):
     def __init__(self):
-        self.loader = pluginlib.PluginLoader(modules=["vulnman.scanner.plugins.default"])
+        custom_plugin_paths = config.get("custom_plugins", [])
+        print(config)
+        self.loader = pluginlib.PluginLoader(
+            modules=["vulnman.scanner.plugins.default"],
+            paths=custom_plugin_paths)
 
     def get_plugins(self, plugin_type=None):
         if plugin_type:

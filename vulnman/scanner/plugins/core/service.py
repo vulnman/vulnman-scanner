@@ -2,6 +2,7 @@ import pluginlib
 import sys
 import re
 from shutil import which
+from vulnman.core.utils.logging import logger
 from vulnman.scanner.plugins.core import base as baseplugin
 
 
@@ -104,9 +105,9 @@ class ServiceScanPlugin(baseplugin.Plugin):
         if boolean:
             self.match_service_name('.*')
 
-    @pluginlib.abstractmethod
     async def on_plugin_end(self, output, cmd, target=None, service=None):
-        pass
+        logger.warn(
+            "[{byellow}%s{rst}] No 'on_plugin_end()' method implemented!" % self.name)
 
     @pluginlib.abstractmethod
     async def run(self, service):

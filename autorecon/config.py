@@ -24,7 +24,8 @@ configurable_keys = [
 	'max_plugin_target_instances',
 	'max_plugin_global_instances',
 	'accessible',
-	'verbose'
+	'verbose',
+	'custom_plugins'
 ]
 
 configurable_boolean_keys = [
@@ -62,5 +63,6 @@ config = {
 	'max_plugin_target_instances': None,
 	'max_plugin_global_instances': None,
 	'accessible': False,
+	'custom_plugins': [],
 	'verbose': 0
 }

@@ -49,7 +49,9 @@ class VulnmanScanner(object):
         self.argparse_group.add_argument(name, **kwargs)
 
     def load_plugins(self):
-        loader = pluginlib.PluginLoader(modules=['vulnman.scanner.plugins.default'])
+        custom_plugin_path = config.get("custom_plugins", [])
+        loader = pluginlib.PluginLoader(
+            modules=['vulnman.scanner.plugins.default'], paths=custom_plugin_path)
         for plugin_type in ["servicescan", "portscan", "reportplugin"]:
             for plugin_name in loader.plugins.get(plugin_type).items():
                 plugin = loader.get_plugin(plugin_type, plugin_name[0])(self)

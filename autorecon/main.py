@@ -893,6 +893,7 @@ async def run():
         if key == 'global-file' and args_dict['global_file'] is not None:
             config['global_file'] = args_dict['global_file']
 
+    config["custom_plugins"] = config_yaml.get("custom_plugins", [])
     autorecon.load_plugins()
 
     if len(autorecon.plugin_types['port']) == 0:

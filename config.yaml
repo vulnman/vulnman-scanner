@@ -10,3 +10,6 @@ exclude-tags: "long"
 
 # Report Plugins
 reports: vulnman
+
+# custom_plugins:
+#  - "/home/user/custom_plugins"
