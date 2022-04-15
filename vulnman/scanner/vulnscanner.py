@@ -172,8 +172,7 @@ class VulnmanScanner(object):
         to upload and match findings in plugins.
         :return:
         """
-        base_dir = os.path.dirname(os.path.dirname(__file__))
-        templates_dir = os.path.join(base_dir, "../resources/vulnerability_templates/templates")
+        templates_dir = os.path.join(config["base_dir"], "../resources/vulnerability_templates/templates")
         for path in Path(templates_dir).rglob('info.yaml'):
             with open(path, "r") as f:
                 for item in yaml.safe_load(f):
