@@ -2,7 +2,7 @@ import sys
 import asyncio
 import select
 from datetime import datetime
-from autorecon.config import config
+from vulnman.config import config
 from vulnman.core.utils.logging import logger
 from vulnman.scanner.utils.tasks import calculate_elapsed_time
 

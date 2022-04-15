@@ -2,7 +2,7 @@ import asyncio
 import sys
 import termios
 import time
-from autorecon.config import config
+from vulnman.config import config
 
 
 def cancel_all_tasks(_signal, _frame, autorecon, terminal_settings):

@@ -1,7 +1,7 @@
 import os
 from vulnman.scanner.plugins import core as plugins
 from vulnman.core.utils.logging import logger
-from autorecon.config import config
+from vulnman.config import config
 
 
 class Markdown(plugins.ReportPlugin):

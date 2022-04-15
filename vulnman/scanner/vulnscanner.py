@@ -6,7 +6,7 @@ import sys
 import pluginlib
 import yaml
 from pathlib import Path
-from autorecon.config import config
+from vulnman.config import config
 from vulnman.core.utils.io import CommandStreamReader
 from vulnman.core.utils.logging import logger
 from vulnman.core.utils.slugify import slugify
@@ -173,7 +173,6 @@ class VulnmanScanner(object):
         :return:
         """
         base_dir = os.path.dirname(os.path.dirname(__file__))
-        print(base_dir)
         templates_dir = os.path.join(base_dir, "../resources/vulnerability_templates/templates")
         for path in Path(templates_dir).rglob('info.yaml'):
             with open(path, "r") as f:

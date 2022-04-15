@@ -1,6 +1,6 @@
 import asyncio
 from datetime import datetime
-from autorecon.config import config
+from vulnman.config import config
 from vulnman.core.utils.logging import logger
 
 

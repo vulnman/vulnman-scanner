@@ -1,6 +1,6 @@
 import sys
 import string
-from autorecon.config import config
+from vulnman.config import config
 from colorama import Fore, Style
 
 
