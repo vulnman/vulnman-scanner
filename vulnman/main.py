@@ -860,8 +860,6 @@ async def run():
     parser.add_argument('-mpgi', '--max-plugin-global-instances', action='store', nargs='+', metavar='PLUGIN:NUMBER',
                         help='A space separated list of plugin slugs with the max number of global instances in the '
                              'following style: nmap-http:2 dirbuster:1. Default: %(default)s')
-    parser.add_argument('--accessible', action='store_true',
-                        help='Attempts to make AutoRecon output more accessible to screenreaders. Default: %(default)s')
     parser.add_argument('-v', '--verbose', action='count', help='Enable verbose output. Repeat for more verbosity.')
     parser.add_argument('--version', action='store_true', help='Prints the AutoRecon version and exits.')
     parser.error = lambda s: logger.fail(s[0].upper() + s[1:])

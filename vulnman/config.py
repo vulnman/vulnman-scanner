@@ -72,5 +72,6 @@ config = {
     'accessible': False,
     'custom_plugins': [],
     'verbose': 0,
-    'base_dir': os.path.join(os.path.dirname(os.path.dirname(__file__)), "vulnman")
+    'base_dir': os.path.join(os.path.dirname(os.path.dirname(__file__)), "vulnman"),
+    'vuln_template_repo': "https://github.com/vulnman/community-vulnerability-templates"
 }

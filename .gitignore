@@ -8,3 +8,4 @@ myconfigs
 build
 dist
 *.egg-info
+resources/vulnerability_templates

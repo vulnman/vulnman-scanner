@@ -6,6 +6,7 @@ import sys
 import pluginlib
 import yaml
 from pathlib import Path
+from git import Repo
 from vulnman.config import config
 from vulnman.core.utils.io import CommandStreamReader
 from vulnman.core.utils.logging import logger
@@ -172,8 +173,15 @@ class VulnmanScanner(object):
         to upload and match findings in plugins.
         :return:
         """
-        templates_dir = os.path.join(config["base_dir"], "../resources/vulnerability_templates/templates")
-        for path in Path(templates_dir).rglob('info.yaml'):
+        template_dir = os.path.join(
+            config["base_dir"], "../resources/vulnerability_templates")
+        if os.path.isdir(template_dir):
+            repo = Repo(template_dir)
+            origin = repo.remotes.origin
+            origin.pull()
+        else:
+            Repo.clone_from(config["vuln_template_repo"], template_dir)
+        for path in Path(template_dir).rglob('info.yaml'):
             with open(path, "r") as f:
                 for item in yaml.safe_load(f):
                     self.vulnerability_templates.append(

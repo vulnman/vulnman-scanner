@@ -27,7 +27,7 @@ class Corsy(plugins.ServiceScanPlugin):
         cmd = service.parse_string_vals(
             "corsy -u {http_scheme}://{address}:{port}")
         for result in results.keys():
-            text_proof = "```json\n $ %s\n[...]\n" % cmd
+            text_proof = "```json\n$ %s\n[...]\n" % cmd
             text_proof += "%s" % json.dumps(results[result], indent=4)
             text_proof += "\n[...]\n```"
             proof = self.get_proof_from_data(cmd, text_proof)
